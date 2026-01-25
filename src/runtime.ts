@@ -13,9 +13,13 @@ export type Context = Readonly<{
   cleanups: Array<() => void>;
 }>;
 
+function getLayerKey(layer: Layer): unknown {
+  return layer.id || layer.name || layer;
+}
+
 class LayerInstance {
-  readonly app: Application;
-  readonly layer: Layer;
+  private readonly app: Application;
+  private layer: Layer;
 
   private readonly state: Record<string, unknown>;
 
@@ -27,11 +31,15 @@ class LayerInstance {
     this.layer = args.layer;
 
     this.state = {};
+
     this.currentContainer = null;
     this.currentChildren = null;
   }
 
-  async render(): Promise<RenderResult> {
+  async render(): Promise<{
+    container: Container;
+    cleanup: () => void;
+  }> {
     const container = new Container();
     const cleanups: Array<() => void> = [];
     const children = new Map<unknown, LayerInstanceChild>();
@@ -42,9 +50,9 @@ class LayerInstance {
       container,
       cleanups,
     };
-    const layers = await this.layer.call(undefined, context);
+    const childLayers = await this.layer.call(undefined, context);
 
-    for (const [index, layer] of layers.entries()) {
+    for (const [index, layer] of childLayers.entries()) {
       const key = getLayerKey(layer);
       if (children.has(key)) {
         // skip duplicate layers
@@ -72,16 +80,12 @@ class LayerInstance {
 
     const cleanup = (): void => {
       for (const child of children.values()) {
-        if (child.abort) {
-          child.abort();
-        }
-        if (child.cleanup) {
-          try {
-            child.cleanup.call(undefined);
-          } catch (err) {
-            // eslint-disable-next-line no-console
-            console.error(err);
-          }
+        child.abort?.();
+        try {
+          child.cleanup?.call(undefined);
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(err);
         }
       }
       for (const func of cleanups) {
@@ -100,33 +104,38 @@ class LayerInstance {
     return { container, cleanup };
   }
 
-  updateLayer(layer: Layer): void {
-    if (!this.currentContainer || !this.currentChildren) {
-      return;
-    }
+  acceptLayerUpdate(layer: Layer): boolean {
     const key = getLayerKey(layer);
-    for (const [childKey, child] of this.currentChildren) {
-      if (key === childKey) {
+    const thisKey = getLayerKey(this.layer);
+    if (key === thisKey) {
+      this.layer = layer;
+      return true;
+    }
+    if (!this.currentChildren) {
+      return false;
+    }
+    for (const child of this.currentChildren.values()) {
+      const accepted = child.instance.acceptLayerUpdate(layer);
+      if (accepted) {
         this.renderChild(this.currentContainer, child).catch((err: unknown) => {
           // eslint-disable-next-line no-console
           console.error(err);
         });
-      } else {
-        child.instance.updateLayer(layer);
       }
     }
+    return false;
   }
 
-  private async renderChild(container: Container, child: LayerInstanceChild): Promise<void> {
-    if (child.abort) {
-      child.abort();
-    }
-    const prevCleanup = child.cleanup;
+  private async renderChild(container: Container | null, child: LayerInstanceChild): Promise<void> {
+    child.abort?.();
+
     const controller = new AbortController();
     child.abort = () => {
       controller.abort();
     };
+
     const result = await child.instance.render();
+
     if (controller.signal.aborted) {
       try {
         result.cleanup.call(undefined);
@@ -135,17 +144,19 @@ class LayerInstance {
         console.error(err);
       }
     } else {
-      container.addChildAt(result.container, child.index);
-      child.cleanup = result.cleanup;
-      if (prevCleanup) {
-        try {
-          prevCleanup();
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-      }
+      // eslint-disable-next-line require-atomic-updates
       child.abort = undefined;
+
+      container?.removeChildAt(child.index);
+      try {
+        child.cleanup?.call(undefined);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+
+      child.cleanup = result.cleanup;
+      container?.addChildAt(result.container, child.index);
     }
   }
 }
@@ -157,11 +168,121 @@ type LayerInstanceChild = {
   cleanup?: (() => void) | undefined;
 };
 
-type RenderResult = {
-  container: Container;
-  cleanup: () => void;
+class Root {
+  readonly container: Container;
+
+  private currentChild: RootChild;
+
+  constructor(layerInstance: LayerInstance) {
+    this.container = new Container();
+
+    this.currentChild = {
+      instance: layerInstance,
+    };
+  }
+
+  render(): void {
+    this.renderChild(this.container, this.currentChild).catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    });
+  }
+
+  acceptLayerUpdate(layer: Layer): void {
+    const accepted = this.currentChild.instance.acceptLayerUpdate(layer);
+    if (accepted) {
+      this.renderChild(this.container, this.currentChild).catch((err: unknown) => {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      });
+    }
+  }
+
+  private async renderChild(container: Container, child: RootChild): Promise<void> {
+    child.abort?.();
+
+    const controller = new AbortController();
+    child.abort = () => {
+      controller.abort();
+    };
+
+    const result = await child.instance.render();
+
+    if (controller.signal.aborted) {
+      try {
+        result.cleanup.call(undefined);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+    } else {
+      // eslint-disable-next-line require-atomic-updates
+      child.abort = undefined;
+
+      container.removeChildren();
+      try {
+        child.cleanup?.call(undefined);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err);
+      }
+
+      child.cleanup = result.cleanup;
+      container.addChild(result.container);
+    }
+  }
+
+  dispose(): void {
+    this.currentChild.abort?.();
+    this.currentChild.abort = undefined;
+
+    this.container.removeChildren();
+    try {
+      this.currentChild.cleanup?.call(undefined);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err);
+    }
+
+    this.currentChild.cleanup = undefined;
+  }
+}
+
+type RootChild = {
+  instance: LayerInstance;
+  abort?: (() => void) | undefined;
+  cleanup?: (() => void) | undefined;
 };
 
-function getLayerKey(layer: Layer): unknown {
-  return layer.id || layer.name || layer;
+const rootRegistry: Set<Root> = new Set();
+
+export class Runtime {
+  readonly app: Application;
+
+  constructor(args: { app: Application }) {
+    this.app = args.app;
+  }
+
+  render(layer: Layer): {
+    container: Container;
+    dispose: () => void;
+  } {
+    const instance = new LayerInstance({ app: this.app, layer });
+    const root = new Root(instance);
+    root.render();
+    rootRegistry.add(root);
+    return {
+      container: root.container,
+      dispose: () => {
+        rootRegistry.delete(root);
+        root.dispose();
+      },
+    };
+  }
+}
+
+export function acceptLayerUpdate(layer: Layer): void {
+  for (const root of rootRegistry) {
+    root.acceptLayerUpdate(layer);
+  }
 }
