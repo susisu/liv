@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "name": "@susisu/liv",
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write '*.js' src",
+    "format:check": "prettier --check '*.js' src",
+    "lint": "eslint --fix '*.js' src",
+    "lint:check": "eslint '*.js' src",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "vite src"
+  },
+  "devDependencies": {
+    "@susisu/eslint-config": "^0.0.101",
+    "eslint": "^9.39.2",
+    "globals": "^17.1.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
+  }
+}
