@@ -11,6 +11,10 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "vite src"
   },
+  "dependencies": {
+    "pixi-filters": "^6.1.5",
+    "pixi.js": "^8.15.0"
+  },
   "devDependencies": {
     "@susisu/eslint-config": "^0.0.101",
     "eslint": "^9.39.2",
