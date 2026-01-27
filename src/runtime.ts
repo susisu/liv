@@ -1,21 +1,21 @@
 import type { Application } from "pixi.js";
 import { Container } from "pixi.js";
-import type { Context, Layer } from "./types";
+import type { AnyLayer, Context } from "./types";
 
-function getLayerKey(layer: Layer): unknown {
+function getLayerKey(layer: AnyLayer): unknown {
   return layer.id || layer.name || layer;
 }
 
 class LayerInstance {
   private readonly app: Application;
-  private layer: Layer;
+  private layer: AnyLayer;
 
   private readonly state: Record<string, unknown>;
 
   private currentContainer: Container | null;
   private currentChildren: ReadonlyMap<unknown, LayerInstanceChild> | null;
 
-  constructor(args: { app: Application; layer: Layer }) {
+  constructor(args: { app: Application; layer: AnyLayer }) {
     this.app = args.app;
     this.layer = args.layer;
 
@@ -33,7 +33,7 @@ class LayerInstance {
     const cleanups: Array<() => void> = [];
     const children = new Map<unknown, LayerInstanceChild>();
 
-    const context: Context = {
+    const context: Context<Record<string, unknown>> = {
       app: this.app,
       state: this.state,
       container,
@@ -93,7 +93,7 @@ class LayerInstance {
     return { container, cleanup };
   }
 
-  acceptLayerUpdate(layer: Layer): boolean {
+  acceptLayerUpdate(layer: AnyLayer): boolean {
     const key = getLayerKey(layer);
     const thisKey = getLayerKey(this.layer);
     if (key === thisKey) {
@@ -182,7 +182,7 @@ class Root {
     });
   }
 
-  acceptLayerUpdate(layer: Layer): void {
+  acceptLayerUpdate(layer: AnyLayer): void {
     const accepted = this.currentChild.instance.acceptLayerUpdate(layer);
     if (accepted) {
       this.renderChild(this.container, this.currentChild).catch((err: unknown) => {
@@ -261,7 +261,7 @@ export class Runtime {
     this.app = args.app;
   }
 
-  render(layer: Layer): {
+  render(layer: AnyLayer): {
     container: Container;
     dispose: () => void;
   } {
@@ -279,7 +279,7 @@ export class Runtime {
   }
 }
 
-export function acceptLayerUpdate(layer: Layer): void {
+export function acceptLayerUpdate(layer: AnyLayer): void {
   for (const root of rootRegistry) {
     root.acceptLayerUpdate(layer);
   }
