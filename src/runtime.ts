@@ -136,7 +136,9 @@ class LayerInstance {
       // eslint-disable-next-line require-atomic-updates
       child.abort = undefined;
 
-      container?.removeChildAt(child.index);
+      if (child.container) {
+        container?.removeChild(child.container);
+      }
       try {
         child.cleanup?.call(undefined);
       } catch (err) {
@@ -145,7 +147,9 @@ class LayerInstance {
       }
 
       child.cleanup = result.cleanup;
-      container?.addChildAt(result.container, child.index);
+      child.container = result.container;
+      child.container.zIndex = child.index;
+      container?.addChild(child.container);
     }
   }
 }
@@ -154,6 +158,7 @@ type LayerInstanceChild = {
   index: number;
   instance: LayerInstance;
   abort?: (() => void) | undefined;
+  container?: Container | undefined;
   cleanup?: (() => void) | undefined;
 };
 
@@ -208,7 +213,9 @@ class Root {
       // eslint-disable-next-line require-atomic-updates
       child.abort = undefined;
 
-      container.removeChildren();
+      if (child.container) {
+        container.removeChild(child.container);
+      }
       try {
         child.cleanup?.call(undefined);
       } catch (err) {
@@ -217,7 +224,8 @@ class Root {
       }
 
       child.cleanup = result.cleanup;
-      container.addChild(result.container);
+      child.container = result.container;
+      container.addChild(child.container);
     }
   }
 
@@ -240,6 +248,7 @@ class Root {
 type RootChild = {
   instance: LayerInstance;
   abort?: (() => void) | undefined;
+  container?: Container | undefined;
   cleanup?: (() => void) | undefined;
 };
 
