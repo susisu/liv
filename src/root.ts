@@ -1,4 +1,4 @@
-import type { Layer } from "./runtime";
+import type { Layer } from "./types";
 
 export const Root: Layer = () => {
   return [];
