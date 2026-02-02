@@ -7,6 +7,10 @@ declare global {
   var layerRegistry: Map<unknown, AnyLayer> | undefined;
   // eslint-disable-next-line vars-on-top
   var registerLayer: (layer: AnyLayer) => void;
+  // eslint-disable-next-line vars-on-top
+  var rendererRegistry: Set<Renderer> | undefined;
+  // eslint-disable-next-line vars-on-top
+  var requestRerender: () => void;
 }
 
 const layerRegistry = window.layerRegistry ?? new Map<unknown, AnyLayer>();
@@ -21,6 +25,16 @@ function registerLayer(layer: AnyLayer): void {
   layerRegistry.set(key, layer);
 }
 window.registerLayer = registerLayer;
+
+const rendererRegistry = window.rendererRegistry ?? new Set<Renderer>();
+window.rendererRegistry = rendererRegistry;
+
+function requestRerender(): void {
+  for (const renderer of rendererRegistry) {
+    renderer.rerender();
+  }
+}
+window.requestRerender = requestRerender;
 
 class FilterListImpl extends EventEmitter<{ change: [] }> implements FilterList {
   #filters: Filter[];
@@ -311,6 +325,8 @@ export class Renderer {
     this.node = null;
     this.cleanup = null;
     this.abortController = null;
+
+    rendererRegistry.add(this);
   }
 
   render(layer: AnyLayer): void {
@@ -364,13 +380,25 @@ export class Renderer {
       });
   }
 
+  rerender(): void {
+    if (!this.node) {
+      return;
+    }
+    this.render(this.node.layer);
+  }
+
   dispose(): void {
     if (this.abortController) {
       this.abortController.abort();
     }
+    this.abortController = null;
+
     this.container.removeChildren();
     this.containerFilters.removeChildren();
     this.cleanup?.();
+
     this.node = null;
+
+    rendererRegistry.delete(this);
   }
 }
