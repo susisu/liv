@@ -1,62 +1,115 @@
 import type { Application, Filter } from "pixi.js";
 import { Container, EventEmitter } from "pixi.js";
-import type { AnyLayer, Context, Filters } from "./types";
+import type { AnyLayer, AnyState, Context, Effect, EffectSet, FilterList } from "./types";
+
+declare global {
+  // eslint-disable-next-line vars-on-top
+  var layerRegistry: Map<unknown, AnyLayer> | undefined;
+  // eslint-disable-next-line vars-on-top
+  var registerLayer: (layer: AnyLayer) => void;
+}
+
+const layerRegistry = window.layerRegistry ?? new Map<unknown, AnyLayer>();
+window.layerRegistry = layerRegistry;
 
 function getLayerKey(layer: AnyLayer): unknown {
   return layer.id || layer.name || layer;
 }
 
-class FiltersImpl extends EventEmitter<{ change: [] }> implements Filters {
-  private _filters: Set<Filter>;
-  private _zIndex: number;
+function registerLayer(layer: AnyLayer): void {
+  const key = getLayerKey(layer);
+  layerRegistry.set(key, layer);
+}
+window.registerLayer = registerLayer;
+
+class FilterListImpl extends EventEmitter<{ change: [] }> implements FilterList {
+  #filters: Filter[];
+  #index: number;
 
   constructor() {
     super();
-    this._filters = new Set();
-    this._zIndex = 0;
+    this.#filters = [];
+    this.#index = 0;
   }
 
-  getAll(): Filter[] {
-    return [...this._filters];
-  }
-
-  add(filter: Filter): void {
-    this._filters.add(filter);
+  append(filter: Filter): void {
+    this.#filters.push(filter);
     this.emit("change");
   }
 
   remove(filter: Filter): void {
-    this._filters.delete(filter);
+    const i = this.#filters.indexOf(filter);
+    if (i < 0) {
+      return;
+    }
+    this.#filters.splice(i, 1);
     this.emit("change");
   }
 
-  get zIndex(): number {
-    return this._zIndex;
+  get index(): number {
+    return this.#index;
   }
 
-  set zIndex(value: number) {
-    this._zIndex = value;
+  set index(value: number) {
+    this.#index = value;
     this.emit("change");
+  }
+
+  getAll(): Filter[] {
+    return this.#filters.slice();
   }
 }
 
-class ContainerFilters {
-  private readonly container: Container;
+class EffectSetImpl implements EffectSet {
+  #effects: Set<Effect>;
 
-  private readonly children: Map<FiltersImpl, () => void>;
+  constructor() {
+    this.#effects = new Set();
+  }
+
+  add(effect: Effect): void {
+    this.#effects.add(effect);
+  }
+
+  run(): () => void {
+    const cleanups: Array<() => void> = [];
+    for (const effect of this.#effects) {
+      try {
+        cleanups.push(effect());
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(new Error("Error while running effect", { cause: err }));
+      }
+    }
+    cleanups.reverse();
+    return (): void => {
+      for (const cleanup of cleanups) {
+        try {
+          cleanup();
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.error(new Error("Error while running effect cleanup", { cause: err }));
+        }
+      }
+    };
+  }
+}
+
+class ContainerFilterManager {
+  private readonly container: Container;
+  private readonly children: Map<FilterListImpl, () => void>;
 
   constructor(container: Container) {
     this.container = container;
-
     this.children = new Map();
   }
 
-  addChild(filters: FiltersImpl): void {
+  addChild(filters: FilterListImpl): void {
     this._addChild(filters);
     this.updateContainerFilters();
   }
 
-  private _addChild(filters: FiltersImpl): void {
+  private _addChild(filters: FilterListImpl): void {
     const handleChange = (): void => {
       this.updateContainerFilters();
     };
@@ -64,19 +117,19 @@ class ContainerFilters {
     filters.addListener("change", handleChange);
   }
 
-  removeChild(filters: FiltersImpl): void {
+  removeChild(filters: FilterListImpl): void {
     if (this._removeChild(filters)) {
       this.updateContainerFilters();
     }
   }
 
-  private _removeChild(filters: FiltersImpl): boolean {
+  private _removeChild(filters: FilterListImpl): boolean {
     const handleChange = this.children.get(filters);
     if (!handleChange) {
       return false;
     }
-    filters.removeListener("change", handleChange);
     this.children.delete(filters);
+    filters.removeListener("change", handleChange);
     return true;
   }
 
@@ -89,324 +142,235 @@ class ContainerFilters {
 
   private updateContainerFilters(): void {
     const filters = [...this.children.keys()]
-      .sort((a, b) => a.zIndex - b.zIndex)
+      .sort((a, b) => a.index - b.index)
       .flatMap((a) => a.getAll());
     this.container.filters = filters;
   }
 }
 
-class LayerInstance {
-  private readonly app: Application;
-  private layer: AnyLayer;
+class Node {
+  readonly app: Application;
+  readonly emitter: EventEmitter;
+  readonly layer: AnyLayer;
+  readonly state: AnyState;
+  readonly container: Container;
+  readonly filters: FilterListImpl;
+  readonly effect: Effect;
+  readonly children: ReadonlyMap<unknown, { index: number; node: Node }>;
 
-  private readonly state: Record<string, unknown>;
-
-  private currentContainer: Container | null;
-  private currentContainerFilters: ContainerFilters | null;
-  private currentChildren: ReadonlyMap<unknown, LayerInstanceChild> | null;
-
-  constructor(args: { app: Application; layer: AnyLayer }) {
+  constructor(args: {
+    app: Application;
+    emitter: EventEmitter;
+    layer: AnyLayer;
+    state: AnyState;
+    container: Container;
+    filters: FilterListImpl;
+    effect: Effect;
+    children: ReadonlyMap<unknown, { index: number; node: Node }>;
+  }) {
     this.app = args.app;
+    this.emitter = args.emitter;
     this.layer = args.layer;
-
-    this.state = {};
-
-    this.currentContainer = null;
-    this.currentContainerFilters = null;
-    this.currentChildren = null;
+    this.state = args.state;
+    this.container = args.container;
+    this.filters = args.filters;
+    this.effect = args.effect;
+    this.children = args.children;
   }
 
-  async render(): Promise<{
-    container: Container;
-    filters: FiltersImpl;
-    cleanup: () => void;
-  }> {
-    const container = new Container();
-    const containerFilters = new ContainerFilters(container);
-    const filters = new FiltersImpl();
-    const cleanups: Array<() => void> = [];
-    const children = new Map<unknown, LayerInstanceChild>();
+  async render(options?: { signal?: AbortSignal }): Promise<Node> {
+    const abortController = new AbortController();
+    if (options?.signal) {
+      if (options.signal.aborted) {
+        abortController.abort();
+      } else {
+        options.signal.addEventListener("abort", abortController.abort.bind(abortController), {
+          once: true,
+        });
+      }
+    }
+    const signal = abortController.signal;
 
-    const context: Context<Record<string, unknown>> = {
+    const container = new Container();
+    const containerFilters = new ContainerFilterManager(container);
+    const filters = new FilterListImpl();
+    const effects = new EffectSetImpl();
+
+    const context: Context<AnyState> = {
       app: this.app,
+      emitter: this.emitter,
       state: this.state,
       container,
       filters,
-      cleanups,
+      effects,
+      signal,
     };
-    const childLayers = await this.layer.call(undefined, context);
+    const layer = layerRegistry.get(getLayerKey(this.layer)) ?? this.layer;
+    const childLayers = await layer(context);
 
-    for (const [index, layer] of childLayers.entries()) {
-      const key = getLayerKey(layer);
-      if (children.has(key)) {
-        // skip duplicate layers
+    signal.throwIfAborted();
+
+    const oldChildren = new Map<unknown, { index: number; node: Node }>();
+    for (const [index, childLayer] of childLayers.entries()) {
+      const key = getLayerKey(childLayer);
+      if (oldChildren.has(key)) {
+        // eslint-disable-next-line no-console
+        console.warn(`skip duplicate layer: ${String(key)}`);
         continue;
       }
-      const child = this.currentChildren?.get(key);
+      const child = this.children.get(key);
       if (child) {
-        children.set(key, { index, instance: child.instance });
+        oldChildren.set(key, { index, node: child.node });
       } else {
-        const instance = new LayerInstance({ app: this.app, layer });
-        children.set(key, { index, instance });
+        const newNode = new Node({
+          app: this.app,
+          emitter: this.emitter,
+          layer: childLayer,
+          state: {},
+          container: new Container(),
+          filters: new FilterListImpl(),
+          effect: () => () => {},
+          children: new Map(),
+        });
+        oldChildren.set(key, { index, node: newNode });
       }
     }
 
-    await Promise.all(
-      [...children.values()].map(async (child) => {
-        try {
-          await this.renderChild(container, containerFilters, child);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-      }),
-    );
-
-    const cleanup = (): void => {
-      for (const child of children.values()) {
-        child.abort?.();
-        try {
-          child.cleanup?.call(undefined);
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-      }
-      for (const func of cleanups) {
-        try {
-          func();
-        } catch (err) {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        }
-      }
-    };
-
-    this.currentContainer = container;
-    this.currentContainerFilters = containerFilters;
-    this.currentChildren = children;
-
-    return { container, filters, cleanup };
-  }
-
-  acceptLayerUpdate(layer: AnyLayer): boolean {
-    const key = getLayerKey(layer);
-    const thisKey = getLayerKey(this.layer);
-    if (key === thisKey) {
-      this.layer = layer;
-      return true;
-    }
-    if (!this.currentChildren) {
-      return false;
-    }
-    for (const child of this.currentChildren.values()) {
-      const accepted = child.instance.acceptLayerUpdate(layer);
-      if (accepted) {
-        this.renderChild(this.currentContainer, this.currentContainerFilters, child).catch(
-          (err: unknown) => {
-            // eslint-disable-next-line no-console
-            console.error(err);
+    const children = new Map(
+      await Promise.all(
+        [...oldChildren].map(
+          async ([key, { index, node: oldNode }]): Promise<
+            [key: unknown, { index: number; node: Node }]
+          > => {
+            try {
+              const node = await oldNode.render({ signal });
+              return [key, { index, node }];
+            } catch (err) {
+              abortController.abort();
+              throw err;
+            }
           },
-        );
-      }
-    }
-    return false;
-  }
-
-  private async renderChild(
-    container: Container | null,
-    containerFilters: ContainerFilters | null,
-    child: LayerInstanceChild,
-  ): Promise<void> {
-    child.abort?.();
-
-    const controller = new AbortController();
-    child.abort = () => {
-      controller.abort();
-    };
-
-    const result = await child.instance.render();
-
-    if (controller.signal.aborted) {
-      try {
-        result.cleanup.call(undefined);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
-    } else {
-      // eslint-disable-next-line require-atomic-updates
-      child.abort = undefined;
-
-      if (child.filters) {
-        containerFilters?.removeChild(child.filters);
-      }
-      if (child.container) {
-        container?.removeChild(child.container);
-      }
-      try {
-        child.cleanup?.call(undefined);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
-
-      child.cleanup = result.cleanup;
-      child.container = result.container;
-      child.container.zIndex = child.index;
-      container?.addChild(child.container);
-      child.filters = result.filters;
-      child.filters.zIndex = child.index;
-      containerFilters?.addChild(child.filters);
-    }
-  }
-}
-
-type LayerInstanceChild = {
-  index: number;
-  instance: LayerInstance;
-  abort?: (() => void) | undefined;
-  container?: Container | undefined;
-  filters?: FiltersImpl | undefined;
-  cleanup?: (() => void) | undefined;
-};
-
-class Root {
-  readonly container: Container;
-  private readonly containerFilters: ContainerFilters;
-
-  private currentChild: RootChild;
-
-  constructor(layerInstance: LayerInstance) {
-    this.container = new Container();
-    this.containerFilters = new ContainerFilters(this.container);
-
-    this.currentChild = {
-      instance: layerInstance,
-    };
-  }
-
-  render(): void {
-    this.renderChild(this.container, this.containerFilters, this.currentChild).catch(
-      (err: unknown) => {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      },
+        ),
+      ),
     );
-  }
 
-  acceptLayerUpdate(layer: AnyLayer): void {
-    const accepted = this.currentChild.instance.acceptLayerUpdate(layer);
-    if (accepted) {
-      this.renderChild(this.container, this.containerFilters, this.currentChild).catch(
-        (err: unknown) => {
-          // eslint-disable-next-line no-console
-          console.error(err);
-        },
-      );
+    signal.throwIfAborted();
+
+    for (const { index, node } of children.values()) {
+      node.container.zIndex = index;
+      container.addChild(node.container);
+      node.filters.index = index;
+      containerFilters.addChild(node.filters);
     }
-  }
 
-  private async renderChild(
-    container: Container,
-    containerFilters: ContainerFilters,
-    child: RootChild,
-  ): Promise<void> {
-    child.abort?.();
-
-    const controller = new AbortController();
-    child.abort = () => {
-      controller.abort();
+    const effect: Effect = () => {
+      const cleanups: Array<() => void> = [];
+      for (const { node } of children.values()) {
+        cleanups.push(node.effect());
+      }
+      cleanups.push(effects.run());
+      cleanups.reverse();
+      return () => {
+        for (const cleanup of cleanups) {
+          cleanup();
+        }
+      };
     };
 
-    const result = await child.instance.render();
+    const node = new Node({
+      app: this.app,
+      emitter: this.emitter,
+      layer,
+      state: this.state,
+      container,
+      filters,
+      effect,
+      children,
+    });
 
-    if (controller.signal.aborted) {
-      try {
-        result.cleanup.call(undefined);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
-    } else {
-      // eslint-disable-next-line require-atomic-updates
-      child.abort = undefined;
-
-      if (child.filters) {
-        containerFilters.removeChild(child.filters);
-      }
-      if (child.container) {
-        container.removeChild(child.container);
-      }
-      try {
-        child.cleanup?.call(undefined);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error(err);
-      }
-
-      child.cleanup = result.cleanup;
-      child.container = result.container;
-      container.addChild(child.container);
-      child.filters = result.filters;
-      containerFilters.addChild(child.filters);
-    }
-  }
-
-  dispose(): void {
-    this.currentChild.abort?.();
-    this.currentChild.abort = undefined;
-
-    this.containerFilters.removeChildren();
-    this.container.removeChildren();
-    try {
-      this.currentChild.cleanup?.call(undefined);
-    } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(err);
-    }
-
-    this.currentChild.cleanup = undefined;
+    return node;
   }
 }
 
-type RootChild = {
-  instance: LayerInstance;
-  abort?: (() => void) | undefined;
-  container?: Container | undefined;
-  filters?: FiltersImpl | undefined;
-  cleanup?: (() => void) | undefined;
-};
-
-const rootRegistry: Set<Root> = new Set();
-
-export class Runtime {
+export class Renderer {
   readonly app: Application;
+  readonly emitter: EventEmitter;
+  readonly container: Container;
+  private readonly containerFilters: ContainerFilterManager;
+
+  private node: Node | null;
+  private cleanup: (() => void) | null;
+  private abortController: AbortController | null;
 
   constructor(args: { app: Application }) {
     this.app = args.app;
+    this.emitter = new EventEmitter();
+    this.container = new Container();
+    this.containerFilters = new ContainerFilterManager(this.container);
+
+    this.node = null;
+    this.cleanup = null;
+    this.abortController = null;
   }
 
-  render(layer: AnyLayer): {
-    container: Container;
-    dispose: () => void;
-  } {
-    const instance = new LayerInstance({ app: this.app, layer });
-    const root = new Root(instance);
-    root.render();
-    rootRegistry.add(root);
-    return {
-      container: root.container,
-      dispose: () => {
-        rootRegistry.delete(root);
-        root.dispose();
-      },
-    };
-  }
-}
+  render(layer: AnyLayer): void {
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.abortController = new AbortController();
+    const signal = this.abortController.signal;
 
-export function acceptLayerUpdate(layer: AnyLayer): void {
-  for (const root of rootRegistry) {
-    root.acceptLayerUpdate(layer);
+    let oldNode: Node;
+    if (this.node && getLayerKey(layer) === getLayerKey(this.node.layer)) {
+      oldNode = this.node;
+    } else {
+      oldNode = new Node({
+        app: this.app,
+        emitter: this.emitter,
+        layer,
+        state: {},
+        container: new Container(),
+        filters: new FilterListImpl(),
+        effect: () => () => {},
+        children: new Map(),
+      });
+    }
+
+    oldNode
+      .render({ signal })
+      .then((newNode) => {
+        signal.throwIfAborted();
+        this.abortController = null;
+
+        this.container.removeChildren();
+        this.containerFilters.removeChildren();
+        this.cleanup?.();
+
+        this.node = newNode;
+
+        this.container.addChild(newNode.container);
+        this.containerFilters.addChild(newNode.filters);
+        this.cleanup = newNode.effect();
+      })
+      .catch((err: unknown) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        if ((err as any)?.name === "AbortError") {
+          // eslint-disable-next-line no-console
+          console.log("Rendering aborted");
+        } else {
+          // eslint-disable-next-line no-console
+          console.error(new Error("Error while rendering", { cause: err }));
+        }
+      });
+  }
+
+  dispose(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.container.removeChildren();
+    this.containerFilters.removeChildren();
+    this.cleanup?.();
+    this.node = null;
   }
 }

@@ -1,5 +1,5 @@
 import { Application } from "pixi.js";
-import { Runtime } from "./runtime";
+import { Renderer } from "./runtime";
 import { Root } from "./root";
 
 async function main(): Promise<void> {
@@ -7,9 +7,9 @@ async function main(): Promise<void> {
   await app.init({ background: "#000000", resizeTo: window });
   document.body.appendChild(app.canvas);
 
-  const runtime = new Runtime({ app });
-  const { container } = runtime.render(Root);
-  app.stage.addChild(container);
+  const renderer = new Renderer({ app });
+  renderer.render(Root);
+  app.stage.addChild(renderer.container);
 }
 
 main().catch((err: unknown) => {

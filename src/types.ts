@@ -1,6 +1,8 @@
-import type { Application, Container, Filter } from "pixi.js";
+import type { Application, Container, EventEmitter, Filter } from "pixi.js";
 
-export type Layer<State extends Record<string, unknown> = {}> = {
+export type AnyState = Record<string | number | symbol, unknown>;
+
+export type Layer<State extends AnyState = {}> = {
   (context: Context<State>): AnyLayer[] | Promise<AnyLayer[]>;
   id?: string;
 };
@@ -8,15 +10,23 @@ export type Layer<State extends Record<string, unknown> = {}> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyLayer = Layer<any>;
 
-export type Context<State extends Record<string, unknown> = {}> = Readonly<{
+export type Context<State extends AnyState = {}> = Readonly<{
   app: Application;
+  emitter: EventEmitter;
   state: Partial<State>;
   container: Container;
-  filters: Filters;
-  cleanups: Array<() => void>;
+  filters: FilterList;
+  effects: EffectSet;
+  signal: AbortSignal;
 }>;
 
-export interface Filters {
-  add(filter: Filter): void;
+export interface FilterList {
+  append(filter: Filter): void;
   remove(filter: Filter): void;
+}
+
+export type Effect = () => () => void;
+
+export interface EffectSet {
+  add(effect: Effect): void;
 }
