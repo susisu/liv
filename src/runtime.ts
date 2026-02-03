@@ -6,35 +6,18 @@ declare global {
   // eslint-disable-next-line vars-on-top
   var layerRegistry: Map<unknown, AnyLayer> | undefined;
   // eslint-disable-next-line vars-on-top
-  var registerLayer: (layer: AnyLayer) => void;
-  // eslint-disable-next-line vars-on-top
   var rendererRegistry: Set<Renderer> | undefined;
-  // eslint-disable-next-line vars-on-top
-  var requestRerender: () => void;
 }
 
 const layerRegistry = window.layerRegistry ?? new Map<unknown, AnyLayer>();
 window.layerRegistry = layerRegistry;
 
-function getLayerKey(layer: AnyLayer): unknown {
-  return layer.id || layer.name || layer;
-}
-
-function registerLayer(layer: AnyLayer): void {
-  const key = getLayerKey(layer);
-  layerRegistry.set(key, layer);
-}
-window.registerLayer = registerLayer;
-
 const rendererRegistry = window.rendererRegistry ?? new Set<Renderer>();
 window.rendererRegistry = rendererRegistry;
 
-function requestRerender(): void {
-  for (const renderer of rendererRegistry) {
-    renderer.rerender();
-  }
+function getLayerKey(layer: AnyLayer): unknown {
+  return layer.id || layer.name || layer;
 }
-window.requestRerender = requestRerender;
 
 class FilterListImpl extends EventEmitter<{ change: [] }> implements FilterList {
   #filters: Filter[];
@@ -219,7 +202,7 @@ class Node {
       effects,
       signal,
     };
-    const layer = layerRegistry.get(getLayerKey(this.layer)) ?? this.layer;
+    const layer = layerRegistry.get(this.layer.id) ?? this.layer;
     const childLayers = await layer(context);
 
     signal.throwIfAborted();

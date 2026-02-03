@@ -1,6 +1,6 @@
 import { Application } from "pixi.js";
 import { Renderer } from "./runtime";
-import { Root } from "./root";
+import { Root } from "./root.layers";
 
 async function main(): Promise<void> {
   const app = new Application();
