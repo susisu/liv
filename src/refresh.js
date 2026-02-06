@@ -4,10 +4,6 @@ window.layerRegistry = layerRegistry;
 const rendererRegistry = window.rendererRegistry ?? new Set();
 window.rendererRegistry = rendererRegistry;
 
-function getLayerKey(layer) {
-  return layer.id || layer.name || layer;
-}
-
 function requestRerender() {
   for (const renderer of rendererRegistry) {
     renderer.rerender();
@@ -18,8 +14,7 @@ export function registerLayers(id, module) {
   for (const value of Object.values(module)) {
     if (typeof value === "function" && /^[A-Z]/u.test(value.name)) {
       value.id = `${id}#${value.name}`;
-      const key = getLayerKey(value);
-      layerRegistry.set(key, value);
+      layerRegistry.set(value.id, value);
     }
   }
 }
@@ -47,7 +42,9 @@ export function performRefresh(oldModule, newModule) {
       && typeof newValue === "function"
       && /^[A-Z]/u.test(oldValue.name)
       && /^[A-Z]/u.test(newValue.name)
-      && getLayerKey(oldValue) === getLayerKey(newValue)
+      && oldValue.id
+      && newValue.id
+      && oldValue.id === newValue.id
     ) {
       continue;
     }

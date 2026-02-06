@@ -4,19 +4,19 @@ import type { AnyLayer, AnyState, Context, Effect, EffectSet, FilterList } from 
 
 declare global {
   // eslint-disable-next-line vars-on-top
-  var layerRegistry: Map<unknown, AnyLayer> | undefined;
+  var layerRegistry: Map<string, AnyLayer> | undefined;
   // eslint-disable-next-line vars-on-top
   var rendererRegistry: Set<Renderer> | undefined;
 }
 
-const layerRegistry = window.layerRegistry ?? new Map<unknown, AnyLayer>();
+const layerRegistry = window.layerRegistry ?? new Map<string, AnyLayer>();
 window.layerRegistry = layerRegistry;
 
 const rendererRegistry = window.rendererRegistry ?? new Set<Renderer>();
 window.rendererRegistry = rendererRegistry;
 
 function getLayerKey(layer: AnyLayer): unknown {
-  return layer.id || layer.name || layer;
+  return layer.id || layer;
 }
 
 class FilterListImpl extends EventEmitter<{ change: [] }> implements FilterList {
@@ -202,7 +202,7 @@ class Node {
       effects,
       signal,
     };
-    const layer = layerRegistry.get(this.layer.id) ?? this.layer;
+    const layer = (this.layer.id ? layerRegistry.get(this.layer.id) : undefined) ?? this.layer;
     const childLayers = await layer(context);
 
     signal.throwIfAborted();
