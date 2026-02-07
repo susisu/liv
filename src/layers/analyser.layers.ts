@@ -1,4 +1,5 @@
-import { Graphics, GraphicsContext, type TickerCallback } from "pixi.js";
+import type { TickerCallback } from "pixi.js";
+import { Graphics, GraphicsContext } from "pixi.js";
 import type { Layer } from "../types";
 import { asyncInit } from "./utils";
 

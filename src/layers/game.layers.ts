@@ -1,57 +1,8 @@
-import { ColorMatrixFilter, Graphics, GraphicsContext, type TickerCallback } from "pixi.js";
+import type { TickerCallback } from "pixi.js";
+import { ColorMatrixFilter, Graphics } from "pixi.js";
 import type { Layer } from "../types";
 import { init } from "./utils";
-
-const unit = 32;
-
-const sprites = {
-  right: {
-    neutral: new GraphicsContext()
-      .rect(0, 0, unit * 8, unit * 8)
-      .fill("#ff0000")
-      .rect(0, 0, unit, unit)
-      .rect(unit * 4, unit * 3, unit, unit * 2)
-      .rect(unit * 6, unit * 3, unit, unit * 2)
-      .cut(),
-    up: new GraphicsContext()
-      .rect(0, 0, unit * 8, unit * 8)
-      .fill("#ff0000")
-      .rect(0, 0, unit, unit)
-      .rect(unit * 4, unit * 2, unit, unit * 2)
-      .rect(unit * 6, unit * 2, unit, unit * 2)
-      .cut(),
-    down: new GraphicsContext()
-      .rect(0, 0, unit * 8, unit * 8)
-      .fill("#ff0000")
-      .rect(0, 0, unit, unit)
-      .rect(unit * 4, unit * 4, unit, unit * 2)
-      .rect(unit * 6, unit * 4, unit, unit * 2)
-      .cut(),
-  },
-  left: {
-    neutral: new GraphicsContext()
-      .rect(0, 0, unit * 8, unit * 8)
-      .fill("#ff0000")
-      .rect(unit * 7, 0, unit, unit)
-      .rect(unit * 4, unit * 3, unit, unit * 2)
-      .rect(unit * 2, unit * 3, unit, unit * 2)
-      .cut(),
-    up: new GraphicsContext()
-      .rect(0, 0, unit * 8, unit * 8)
-      .fill("#ff0000")
-      .rect(unit * 7, 0, unit, unit)
-      .rect(unit * 4, unit * 2, unit, unit * 2)
-      .rect(unit * 2, unit * 2, unit, unit * 2)
-      .cut(),
-    down: new GraphicsContext()
-      .rect(0, 0, unit * 8, unit * 8)
-      .fill("#ff0000")
-      .rect(unit * 7, 0, unit, unit)
-      .rect(unit * 4, unit * 4, unit, unit * 2)
-      .rect(unit * 2, unit * 4, unit, unit * 2)
-      .cut(),
-  },
-};
+import { sprites, unit } from "./sprites";
 
 export const Game: Layer<{
   x: number;
@@ -99,7 +50,8 @@ export const Game: Layer<{
 
   const shadow = new Graphics(sprites[state.hDirection][state.vDirection]);
   shadow.pivot.set(unit * 4, unit * 4);
-  shadow.alpha = 0.5;
+  shadow.alpha = Math.max(0.5 * (1 - state.beatTime / 30), 0);
+  shadow.scale.set(1 + state.beatTime / 30);
   shadow.filters = [filter];
   container.addChild(shadow);
 
@@ -234,7 +186,7 @@ export const Game: Layer<{
 
       updatePosition();
 
-      shadow.alpha = 0.5 * (1 - state.beatTime / 30);
+      shadow.alpha = Math.max(0.5 * (1 - state.beatTime / 30), 0);
       shadow.scale.set(1 + state.beatTime / 30);
 
       if (state.partyMode) {
