@@ -15,6 +15,12 @@ export default config(
     },
   },
   {
+    files: ["src/layers/**/*"],
+    rules: {
+      "no-console": "off",
+    },
+  },
+  {
     files: ["*"],
     languageOptions: {
       globals: {

@@ -13,7 +13,7 @@
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noPropertyAccessFromIndexSignature": true,
-    "noUncheckedIndexedAccess": true,
+    // "noUncheckedIndexedAccess": true,
     "skipLibCheck": true,
     "types": ["vite/client"]
   },

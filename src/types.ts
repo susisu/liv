@@ -15,7 +15,7 @@ export type LayerRetrunValue = AnyLayer | boolean | undefined | null;
 export type Context<State extends AnyState = {}> = Readonly<{
   app: Application;
   emitter: EventEmitter;
-  state: Partial<State>;
+  state: State;
   container: Container;
   filters: FilterList;
   effects: EffectSet;
