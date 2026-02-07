@@ -203,7 +203,7 @@ class Node {
       signal,
     };
     const layer = (this.layer.id ? layerRegistry.get(this.layer.id) : undefined) ?? this.layer;
-    const childLayers = await layer(context);
+    const childLayers = (await layer(context)).filter((x) => typeof x === "function");
 
     signal.throwIfAborted();
 
