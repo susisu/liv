@@ -3,6 +3,7 @@ import type { Layer } from "../types";
 import { Analyser } from "./analyser.layers";
 import { ASCII, CRT, Glitch, Shockwave, ZoomBlur } from "./filters.layers";
 import { Game } from "./game.layers";
+import { Particles } from "./particles.layers";
 import { Rhythm } from "./rhythm.layers";
 import { SMTPPP } from "./smtppp.layers";
 import { Text } from "./text.layers";
@@ -100,5 +101,5 @@ export const Mirror: Layer<{
 };
 
 export const Background: Layer = () => {
-  return [Mirror];
+  return [Mirror, Particles];
 };

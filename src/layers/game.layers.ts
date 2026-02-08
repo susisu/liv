@@ -34,6 +34,7 @@ export const Game: Layer<{
   });
 
   const filter = new ColorMatrixFilter();
+  filter.hue(state.hue, false);
 
   const characterLeft = new Graphics(sprites[state.hDirection][state.vDirection]);
   characterLeft.pivot.set(unit * 4, unit * 4);
