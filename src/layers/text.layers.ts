@@ -14,10 +14,10 @@ export const Text: Layer<{
     text: `DJ XXX`,
     style: {
       fill: "#ffffff",
-      fontSize: 280 * globalScale,
+      fontSize: 420 * globalScale,
       fontFamily: "Phosphate",
     },
-    anchor: 0.5,
+    anchor: { x: 0.5, y: 0.615 },
   });
   text.x = app.screen.width / 2;
   text.y = app.screen.height / 2;
