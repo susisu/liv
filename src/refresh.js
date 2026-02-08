@@ -4,11 +4,22 @@ window.layerRegistry = layerRegistry;
 const rendererRegistry = window.rendererRegistry ?? new Set();
 window.rendererRegistry = rendererRegistry;
 
-function requestRerender() {
+function debounce(fn) {
+  let timerId = null;
+  return () => {
+    if (timerId !== null) {
+      clearTimeout(timerId);
+    }
+    timerId = setTimeout(() => fn(), 16);
+  };
+}
+
+function _requestRerender() {
   for (const renderer of rendererRegistry) {
     renderer.rerender();
   }
 }
+const requestRerender = debounce(_requestRerender);
 
 export function registerLayers(id, module) {
   for (const value of Object.values(module)) {
