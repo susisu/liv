@@ -24,6 +24,15 @@ if (import.meta.hot) {
 }
 
 export default defineConfig({
+  server: {
+    proxy: {
+      "/profile-image": {
+        target: "https://cdn.profile-image.st-hatena.com",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/profile-image/u, ""),
+      },
+    },
+  },
   plugins: [
     {
       name: "liv",
