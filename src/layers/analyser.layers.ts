@@ -12,6 +12,7 @@ export const Analyser: Layer<{
   };
   freqData: Uint8Array<ArrayBuffer>;
   centerX: number;
+  visible: boolean;
 }> = async ({ app, emitter, state, container, effects }) => {
   await asyncInit(state, async (state) => {
     // eslint-disable-next-line require-atomic-updates
@@ -34,7 +35,10 @@ export const Analyser: Layer<{
     })();
     state.freqData ??= new Uint8Array(state.audio.analyser.frequencyBinCount);
     state.centerX ??= app.screen.width / 2;
+    state.visible ??= false;
   });
+
+  container.visible = state.visible;
 
   const barWidth = app.screen.width / state.freqData.length;
   const barHeight = app.screen.height / 2;
@@ -50,6 +54,22 @@ export const Analyser: Layer<{
   for (const bar of bars) {
     container.addChild(bar);
   }
+
+  effects.add(() => {
+    const callback = (event: KeyboardEvent): void => {
+      switch (event.key) {
+        case "y":
+          state.visible = !state.visible;
+          container.visible = state.visible;
+          break;
+        default: // noop
+      }
+    };
+    window.addEventListener("keydown", callback);
+    return () => {
+      window.removeEventListener("keydown", callback);
+    };
+  });
 
   effects.add(() => {
     const callback: TickerCallback<unknown> = () => {

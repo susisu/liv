@@ -16,6 +16,7 @@ export const Game: Layer<{
   number: 0 | 1 | 3;
   autoMode: boolean;
   partyMode: boolean;
+  groundVisible: boolean;
 }> = ({ app, emitter, state, container, effects }) => {
   init(state, (state) => {
     state.x ??= app.screen.width / 2;
@@ -29,6 +30,7 @@ export const Game: Layer<{
     state.number ??= 0;
     state.autoMode ??= false;
     state.partyMode ??= false;
+    state.groundVisible ??= false;
   });
 
   const filter = new ColorMatrixFilter();
@@ -58,6 +60,7 @@ export const Game: Layer<{
   const ground = new Graphics()
     .rect(-app.screen.width / 2, app.screen.height / 2, app.screen.width * 2, app.screen.height)
     .fill("#ff0000");
+  ground.visible = state.groundVisible;
   ground.alpha = 0.5;
   ground.filters = [filter];
   container.addChild(ground);
@@ -144,6 +147,10 @@ export const Game: Layer<{
         case "3":
           state.number = 3;
           updateVisibility();
+          break;
+        case "y":
+          state.groundVisible = !state.groundVisible;
+          ground.visible = state.groundVisible;
           break;
         default: // noop
       }
