@@ -25,7 +25,7 @@ export const Game: Layer<{
     state.vy ??= 0;
     state.hDirection ??= "right";
     state.vDirection ??= "neutral";
-    state.hue ??= 0;
+    state.hue ??= 30;
     state.beatTime ??= 0;
     state.number ??= 0;
     state.autoMode ??= false;
