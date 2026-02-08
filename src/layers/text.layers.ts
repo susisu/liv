@@ -1,5 +1,6 @@
 import { Text as TextObject } from "pixi.js";
 import type { Layer } from "../types";
+import { globalScale } from "./config";
 import { init } from "./utils";
 
 export const Text: Layer<{
@@ -13,7 +14,7 @@ export const Text: Layer<{
     text: `DJ XXX`,
     style: {
       fill: "#ffffff",
-      fontSize: 280,
+      fontSize: 280 * globalScale,
       fontFamily: "Phosphate",
     },
     anchor: 0.5,

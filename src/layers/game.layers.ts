@@ -1,8 +1,8 @@
 import type { TickerCallback } from "pixi.js";
 import { ColorMatrixFilter, Graphics } from "pixi.js";
 import type { Layer } from "../types";
+import { sprites, unit } from "./gameConfig";
 import { init } from "./utils";
-import { sprites, unit } from "./sprites";
 
 export const Game: Layer<{
   x: number;

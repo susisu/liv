@@ -1,6 +1,7 @@
 import { GraphicsContext } from "pixi.js";
+import { globalScale } from "./config";
 
-export const unit = 32;
+export const unit = 32 * globalScale;
 
 export const sprites = {
   right: {

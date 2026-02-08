@@ -1,6 +1,7 @@
 import type { TickerCallback } from "pixi.js";
 import { Text } from "pixi.js";
 import type { Layer } from "../types";
+import { globalScale } from "./config";
 import { init } from "./utils";
 
 export const Rhythm: Layer<{
@@ -20,7 +21,7 @@ export const Rhythm: Layer<{
     text: "",
     style: {
       fill: "#ffffff",
-      fontSize: 32,
+      fontSize: 32 * globalScale,
       fontFamily: "Futura",
     },
     anchor: 0,

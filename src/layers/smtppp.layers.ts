@@ -1,5 +1,6 @@
 import { Graphics } from "pixi.js";
 import type { Layer } from "../types";
+import { globalScale } from "./config";
 import { init } from "./utils";
 
 export const SMTPPP: Layer<{
@@ -19,7 +20,7 @@ export const SMTPPP: Layer<{
   smtppp.pivot.set(smtppp.width / 2, smtppp.height / 2);
   smtppp.x = app.screen.width / 2;
   smtppp.y = app.screen.height / 2;
-  smtppp.scale.set(10);
+  smtppp.scale.set(10 * globalScale);
   smtppp.alpha = 0.5;
   smtppp.visible = state.visible;
   container.addChild(smtppp);

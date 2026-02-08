@@ -1,3 +1,4 @@
+import type { TickerCallback } from "pixi.js";
 import {
   AsciiFilter,
   CRTFilter,
@@ -7,7 +8,6 @@ import {
 } from "pixi-filters";
 import type { Layer } from "../types";
 import { init } from "./utils";
-import type { TickerCallback } from "pixi.js";
 
 export const Shockwave: Layer<{
   enabled: boolean;
