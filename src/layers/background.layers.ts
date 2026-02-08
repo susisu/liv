@@ -10,7 +10,7 @@ import { Text } from "./text.layers";
 import { init } from "./utils";
 
 export const Stage: Layer = () => {
-  return [Rhythm, SMTPPP, Text, Analyser, Game, Shockwave, ZoomBlur, ASCII, Glitch, CRT];
+  return [SMTPPP, Text, Analyser, Game, Shockwave, ZoomBlur, ASCII, Glitch, CRT];
 };
 
 export const Rotation: Layer<{
@@ -101,5 +101,5 @@ export const Mirror: Layer<{
 };
 
 export const Background: Layer = () => {
-  return [Mirror, Particles];
+  return [Rhythm, Mirror, Particles];
 };
