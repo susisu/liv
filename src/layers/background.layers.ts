@@ -8,11 +8,11 @@ import { SMTPPP } from "./smtppp.layers";
 import { Text } from "./text.layers";
 import { init } from "./utils";
 
-const Stage: Layer = () => {
+export const Stage: Layer = () => {
   return [Rhythm, SMTPPP, Text, Analyser, Game, Shockwave, ZoomBlur, ASCII, Glitch, CRT];
 };
 
-const Rotation: Layer<{
+export const Rotation: Layer<{
   rotationEnabled: boolean;
   rotation: number;
   rotationVelocity: number;
@@ -68,7 +68,7 @@ const Rotation: Layer<{
   return [Stage];
 };
 
-const Mirror: Layer<{
+export const Mirror: Layer<{
   mirror: boolean;
 }> = ({ app, state, container, effects }) => {
   init(state, (state) => {
