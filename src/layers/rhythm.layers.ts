@@ -56,6 +56,7 @@ export const Rhythm: Layer<{
             update(state.bpm - (event.shiftKey ? 1 : 0.01), state.rate);
           }
           break;
+        case "b":
         case " ": {
           const now = performance.now();
           const last = buffer.at(-1);

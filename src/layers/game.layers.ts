@@ -107,11 +107,9 @@ export const Game: Layer<{
           state.vx -= 16;
           break;
         case " ":
-          if (!event.altKey) {
-            state.vy = -24;
-          }
+          state.vy = -24;
           break;
-        case "b":
+        case "v":
           state.vy = -24;
           break;
         case "c":
