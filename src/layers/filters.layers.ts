@@ -205,7 +205,7 @@ export const CRT: Layer<{
   enabled: boolean;
 }> = ({ app, state, filters, effects }) => {
   init(state, (state) => {
-    state.enabled ??= true;
+    state.enabled ??= false;
   });
 
   const filter = new CRTFilter();
