@@ -1,14 +1,15 @@
 import type { TickerCallback } from "pixi.js";
 import type { Layer } from "../types";
+import { Analyser } from "./analyser.layers";
 import { ASCII, CRT, Glitch, Shockwave, ZoomBlur } from "./filters.layers";
+import { Game } from "./game.layers";
 import { Rhythm } from "./rhythm.layers";
 import { SMTPPP } from "./smtppp.layers";
+import { Text } from "./text.layers";
 import { init } from "./utils";
-import { Analyser } from "./analyser.layers";
-import { Game } from "./game.layers";
 
 const Stage: Layer = () => {
-  return [Rhythm, SMTPPP, Analyser, Game, Shockwave, ZoomBlur, ASCII, Glitch, CRT];
+  return [Rhythm, SMTPPP, Text, Analyser, Game, Shockwave, ZoomBlur, ASCII, Glitch, CRT];
 };
 
 const Rotation: Layer<{
