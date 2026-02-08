@@ -13,13 +13,13 @@ const Stage: Layer = () => {
 };
 
 const Rotation: Layer<{
-  rotation: number;
   rotationEnabled: boolean;
+  rotation: number;
   rotationVelocity: number;
 }> = ({ app, state, container, effects }) => {
   init(state, (state) => {
-    state.rotation ??= 0;
     state.rotationEnabled ??= false;
+    state.rotation ??= 0;
     state.rotationVelocity ??= 0;
   });
 
@@ -32,7 +32,14 @@ const Rotation: Layer<{
     const callback = (event: KeyboardEvent): void => {
       switch (event.key) {
         case "r":
-          state.rotationEnabled = !state.rotationEnabled;
+          if (event.ctrlKey) {
+            state.rotationEnabled = false;
+            state.rotation = 0;
+            state.rotationVelocity = 0;
+            container.rotation = state.rotation;
+          } else {
+            state.rotationEnabled = !state.rotationEnabled;
+          }
           break;
         default: // noop
       }
