@@ -59,7 +59,7 @@ export const Game: Layer<{
   container.addChild(shadow);
 
   const ground = new Graphics()
-    .rect(-app.screen.width / 2, app.screen.height / 2, app.screen.width * 2, app.screen.height)
+    .rect(-app.screen.width / 2, app.screen.height / 2, app.screen.width * 2, app.screen.height * 2)
     .fill("#ff0000");
   ground.visible = state.groundVisible;
   ground.alpha = 0.5;
