@@ -23,6 +23,9 @@ export const Example1: Layer<{
   container.addChild(bg);
 
   const g = new Graphics().circle(0, 0, 100 * globalScale).fill("#ffffff");
+  // const g = new Graphics()
+  //   .rect(-100 * globalScale, -100 * globalScale, 200 * globalScale, 200 * globalScale)
+  //   .fill("#ffffff");
   container.addChild(g);
 
   effects.add(() => {
