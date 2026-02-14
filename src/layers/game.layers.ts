@@ -170,11 +170,11 @@ export const Game: Layer<{
       state.vy = state.vy + ay * ticker.deltaTime;
       state.x += state.vx * ticker.deltaTime;
       state.y += state.vy * ticker.deltaTime;
-      if (state.x < -unit * 8) {
-        state.x = -unit * 8;
+      if (state.x < 0) {
+        state.x = 0;
       }
-      if (state.x > app.screen.width + unit * 8) {
-        state.x = app.screen.width + unit * 8;
+      if (state.x > app.screen.width) {
+        state.x = app.screen.width;
       }
 
       if (state.vy < 0 && state.vDirection !== "up") {
