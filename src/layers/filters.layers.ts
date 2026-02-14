@@ -7,6 +7,7 @@ import {
   ZoomBlurFilter,
 } from "pixi-filters";
 import type { Layer } from "../types";
+import { globalScale } from "./config";
 import { init } from "./utils";
 
 export const Shockwave: Layer<{
@@ -19,8 +20,8 @@ export const Shockwave: Layer<{
   const filter = new ShockwaveFilter();
   filter.centerX = app.screen.width / 2;
   filter.centerY = app.screen.height / 2;
-  filter.speed = 2048;
-  filter.amplitude = 60;
+  filter.speed = 2048 * globalScale;
+  filter.amplitude = 60 * globalScale;
   filter.enabled = state.enabled;
   filters.append(filter);
 
@@ -97,7 +98,7 @@ export const ZoomBlur: Layer<{
   effects.add(() => {
     const callback: TickerCallback<unknown> = (ticker) => {
       state.strength += ticker.deltaMS / 250;
-      filter.strength = state.strength > 0.5 ? 0 : state.strength;
+      filter.strength = state.strength > 0.5 ? 0 : state.strength * globalScale;
     };
     app.ticker.add(callback);
     return () => {
@@ -124,7 +125,7 @@ export const ASCII: Layer<{
 }> = ({ state, filters, effects }) => {
   init(state, (state) => {
     state.enabled ??= false;
-    state.size ??= 13;
+    state.size ??= Math.ceil(13 * globalScale);
   });
 
   const filter = new AsciiFilter();
