@@ -1,6 +1,7 @@
 import type { TickerCallback } from "pixi.js";
 import { ColorMatrixFilter, Graphics } from "pixi.js";
 import type { Layer } from "../types";
+import { globalScale } from "./config";
 import { sprites, unit } from "./gameConfig";
 import { init } from "./utils";
 
@@ -100,18 +101,18 @@ export const Game: Layer<{
         case "ArrowRight":
           state.hDirection = "right";
           state.vDirection = "neutral";
-          state.vx += 16;
+          state.vx += 16 * globalScale;
           break;
         case "ArrowLeft":
           state.hDirection = "left";
           state.vDirection = "neutral";
-          state.vx -= 16;
+          state.vx -= 16 * globalScale;
           break;
         case " ":
-          state.vy = -24;
+          state.vy = -24 * globalScale;
           break;
         case "v":
-          state.vy = -24;
+          state.vy = -24 * globalScale;
           break;
         case "c":
           state.hue = (state.hue + 3) % 360;
@@ -164,8 +165,8 @@ export const Game: Layer<{
     const callback: TickerCallback<unknown> = (ticker) => {
       state.beatTime += ticker.deltaTime;
 
-      const ax = 0;
-      const ay = 2;
+      const ax = 0 * globalScale;
+      const ay = 2 * globalScale;
       state.vx = (state.vx + ax * ticker.deltaTime) * 0.9;
       state.vy = state.vy + ay * ticker.deltaTime;
       state.x += state.vx * ticker.deltaTime;
@@ -216,15 +217,15 @@ export const Game: Layer<{
           case 0:
             state.hDirection = "right";
             state.vDirection = "neutral";
-            state.vx += 16;
+            state.vx += 16 * globalScale;
             break;
           case 1:
             state.hDirection = "left";
             state.vDirection = "neutral";
-            state.vx -= 16;
+            state.vx -= 16 * globalScale;
             break;
           case 2:
-            state.vy = -24;
+            state.vy = -24 * globalScale;
             break;
           default: // noop
         }
