@@ -3,7 +3,8 @@ import { Assets, Sprite } from "pixi.js";
 import type { Layer } from "../types";
 import { init } from "./utils";
 
-const maxPage = 5;
+const minPage = 0;
+const maxPage = 21;
 
 function getPath(page: number): string {
   return `/assets/slides/${page}.png`;
@@ -15,13 +16,12 @@ export const Slides: Layer<{
 }> = async ({ app, state, container, effects }) => {
   init(state, (state) => {
     state.visible ??= true;
-    state.page ??= 1;
+    state.page ??= minPage;
   });
 
   const textures = await Assets.load<Texture>(
     Array.from({ length: maxPage }).map((_, i) => getPath(i + 1)),
   );
-  console.log(textures);
 
   const sprite = new Sprite();
   const width = app.screen.width;
@@ -39,7 +39,7 @@ export const Slides: Layer<{
     const callback = (event: KeyboardEvent): void => {
       switch (event.key) {
         case ",":
-          state.page = Math.max(state.page - 1, 1);
+          state.page = Math.max(state.page - 1, minPage);
           sprite.texture = textures[getPath(state.page)];
           break;
         case ".":
