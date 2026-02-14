@@ -9,12 +9,14 @@ export const Rhythm: Layer<{
   rate: number;
   clockMS: number;
   lastBeatMS: number;
+  visible: boolean;
 }> = ({ app, emitter, state, container, effects }) => {
   init(state, (state) => {
     state.bpm ??= 120;
     state.rate ??= 1;
     state.clockMS ??= 0;
     state.lastBeatMS ??= 0;
+    state.visible ??= false;
   });
 
   const text = new Text({
@@ -27,6 +29,7 @@ export const Rhythm: Layer<{
     anchor: 0,
   });
   text.alpha = 0.5;
+  text.visible = state.visible;
   container.addChild(text);
 
   function update(newBPM: number, newRate: number): void {
@@ -76,6 +79,10 @@ export const Rhythm: Layer<{
           }
           break;
         }
+        case "@":
+          state.visible = !state.visible;
+          text.visible = state.visible;
+          break;
         default: // noop
       }
     };
